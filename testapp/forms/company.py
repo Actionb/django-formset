@@ -1,5 +1,5 @@
 from django.forms import fields, widgets
-from django.forms.models import ModelForm, construct_instance, model_to_dict
+from django.forms.models import ModelForm, construct_instance, model_to_dict, ModelChoiceField
 
 from formset.collection import FormCollection
 
@@ -17,14 +17,15 @@ class TeamForm(ModelForm):
         required=False,
         widget=widgets.HiddenInput,
     )
+    company = ModelChoiceField(queryset=Company.objects, required=False, widget=widgets.HiddenInput)
 
     class Meta:
         model = Team
-        fields = ['id', 'name']
+        fields = ['id', 'name', 'company']
 
-    def _get_validation_exclusions(self):
-        # Django excludes missing fields from unique validation, but self.instance.company is set
-        return super()._get_validation_exclusions().difference({'company'})
+    # def _get_validation_exclusions(self):
+    #     # Django excludes missing fields from unique validation, but self.instance.company is set
+    #     return super()._get_validation_exclusions().difference({'company'})
 
 
 class MemberForm(ModelForm):
@@ -32,14 +33,15 @@ class MemberForm(ModelForm):
         required=False,
         widget=widgets.HiddenInput,
     )
+    team = ModelChoiceField(queryset=Team.objects, required=False, widget=widgets.HiddenInput)
 
     class Meta:
         model = Member
-        fields = ['id', 'name']
+        fields = ['id', 'name', 'team']
 
-    def _get_validation_exclusions(self):
-        # Django excludes missing fields from unique validation, but self.instance.team is set
-        return super()._get_validation_exclusions().difference({'team'})
+    # def _get_validation_exclusions(self):
+    #     # Django excludes missing fields from unique validation, but self.instance.team is set
+    #     return super()._get_validation_exclusions().difference({'team'})
 
 
 class MemberCollection(FormCollection):
