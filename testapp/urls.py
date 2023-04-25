@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.conf.urls.static import static
+from django.contrib import admin
 from django.http import HttpResponse
 from django.template.loader import get_template
 from django.urls import include, path
@@ -24,6 +25,7 @@ def render_landing(request):
 
 
 urlpatterns = [
+    path('admin/', admin.site.urls),
     path('', render_landing),
     path('success', lambda request: HttpResponse('<h1>Form data succesfully submitted</h1>'), name='form_data_valid'),
     path('default/', include(('testapp.views', 'default'))),
