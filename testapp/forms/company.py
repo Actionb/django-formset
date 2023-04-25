@@ -112,6 +112,12 @@ class CompanyCollection(FormCollection):
     company = CompanyForm()
     teams = TeamCollection()
 
+    def retrieve_instance(self, data):
+        try:
+            return Company.objects.get(pk=data['id'])
+        except (Company.DoesNotExist, KeyError):
+            return Company()
+
 
 class CompanyPlusForm(CompanyForm):
     id = fields.IntegerField(
