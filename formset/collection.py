@@ -4,6 +4,8 @@ from django.forms.models import BaseModelForm, construct_instance, model_to_dict
 from django.forms.utils import ErrorDict, ErrorList, RenderableMixin
 from django.forms.widgets import MediaDefiningClass
 from django.utils.datastructures import MultiValueDict
+from django.utils.text import get_text_list
+from django.utils.translation import gettext_lazy
 
 from formset.exceptions import FormCollectionError
 from formset.renderers.default import FormRenderer
@@ -45,15 +47,6 @@ class FormCollectionMeta(MediaDefiningClass):
         new_class.declared_holders = declared_holders
 
         return new_class
-
-
-class ErrorList(ErrorList):
-    def insert(self, index, error):
-        if index < len(self):
-            self[index] = error
-        else:
-            self.extend([{}] * (index - len(self)))
-            self.append(error)
 
 
 class BaseFormCollection(HolderMixin, RenderableMixin):
@@ -109,6 +102,7 @@ class BaseFormCollection(HolderMixin, RenderableMixin):
             if isinstance(self.default_renderer, type):
                 renderer = renderer()
         self.renderer = renderer
+        self.unique_fields = {self.related_field} if hasattr(self, 'related_field') else set()
 
     def iter_single(self):
         for name, declared_holder in self.declared_holders.items():
@@ -203,7 +197,18 @@ class BaseFormCollection(HolderMixin, RenderableMixin):
 
     def is_valid(self):
         """Return True if all forms in this collection are valid."""
-        return not self.errors
+        def is_valid(errors):
+            if isinstance(errors, dict):
+                return all(is_valid(e) for e in errors.values())
+            if isinstance(errors, list):
+                return all(is_valid(e) for e in errors)
+            assert isinstance(errors, str)
+            return False
+
+        if self._errors is None:
+            self.full_clean()
+        return is_valid(self._errors)
+
 
     def full_clean(self):
         if self.has_many:
@@ -214,6 +219,7 @@ class BaseFormCollection(HolderMixin, RenderableMixin):
                     continue
                 instance = self.retrieve_instance(data)
                 valid_holders = {}
+                errors = ErrorDict()
                 for name, declared_holder in self.declared_holders.items():
                     if name in data:
                         holder = declared_holder.replicate(
@@ -225,13 +231,14 @@ class BaseFormCollection(HolderMixin, RenderableMixin):
                             break
                         if holder.is_valid():
                             valid_holders[name] = holder
-                        else:
-                            self._errors.insert(index, {name: holder.errors})
+                        errors[name] = holder._errors
                     else:
                         # can only happen, if client bypasses browser control
-                        self._errors.insert(index, {name: {NON_FIELD_ERRORS: ["Form data is missing."]}})
+                        errors[name] = {NON_FIELD_ERRORS: ["Form data is missing."]}
                 else:
                     self.valid_holders.append(valid_holders)
+                    self._errors.append(errors)
+            self.validate_unique()
             if len(self.valid_holders) < self.min_siblings:
                 # can only happen, if client bypasses browser control
                 self._errors.clear()
@@ -245,23 +252,75 @@ class BaseFormCollection(HolderMixin, RenderableMixin):
             self._errors = ErrorDict()
             for name, declared_holder in self.declared_holders.items():
                 if name in self.data:
+                    instance = self.retrieve_instance(self.data[name])
                     holder = declared_holder.replicate(
                         data=self.data[name],
-                        instance=self.instance,
+                        instance=instance,
                         ignore_marked_for_removal=self.ignore_marked_for_removal,
                     )
                     if holder.is_valid():
                         self.valid_holders[name] = holder
-                    else:
-                        self._errors.update({name: holder.errors})
+                    self._errors[name] = holder._errors
                 else:
                     # can only happen, if client bypasses browser control
-                    self._errors.update({name: {NON_FIELD_ERRORS: ["Form data is missing."]}})
+                    self._errors[name] = {NON_FIELD_ERRORS: ["Form data is missing."]}
+
+    def validate_unique(self):
+        all_unique_checks = set()
+        for valid_holders in self.valid_holders:
+            for name, holder in valid_holders.items():
+                if isinstance(holder, BaseModelForm):
+                    exclude = holder._get_validation_exclusions().difference(self.unique_fields)
+                    unique_checks, date_checks = holder.instance._get_unique_checks(
+                        exclude=exclude,
+                        include_meta_constraints=True,
+                    )
+                    all_unique_checks.update(unique_checks)
+
+        # Do each of the unique checks (unique and unique_together)
+        for uclass, unique_check in all_unique_checks:
+            seen_data = set()
+            for valid_holders in self.valid_holders:
+                errors = []
+                for name, holder in valid_holders.items():
+                    # Get the data for the set of fields that must be unique among the forms in this collection.
+                    row_data = [
+                        field if field in self.unique_fields else holder.cleaned_data[field]
+                        for field in unique_check
+                        if field in holder.cleaned_data
+                    ]
+                    # Reduce Model instances to their primary key values
+                    row_data = tuple(
+                        f._get_pk_val() if hasattr(f, "_get_pk_val")
+                        # Prevent "unhashable type: list" errors later on.
+                        else tuple(f) if isinstance(f, list) else f
+                        for f in row_data
+                    )
+                    if row_data and None not in row_data:
+                        # if we've already seen it then we have a uniqueness failure
+                        if row_data in seen_data:
+                            # poke error messages into the right places and mark the form as invalid
+                            errors.append(self.get_unique_error_message(unique_check))
+                            holder._errors[NON_FIELD_ERRORS] = errors
+                            # Remove the data from the cleaned_data dict since it was invalid.
+                            for field in unique_check:
+                                if field in holder.cleaned_data:
+                                    del holder.cleaned_data[field]
+                        # mark the data as seen
+                        seen_data.add(row_data)
+
+    def get_unique_error_message(self, unique_check):
+        if len(unique_check) == 1:
+            return gettext_lazy("Please correct the duplicate data for {0}.").format(*unique_check)
+        else:
+            fields = get_text_list(unique_check, gettext_lazy("and"))
+            return gettext_lazy("Please correct the duplicate data for {0}, which must be unique.").format(fields)
 
     def retrieve_instance(self, data):
         """
         Hook to retrieve the main object for a multi object collection.
         """
+        return self.instance
 
     def clean(self):
         return self.cleaned_data
@@ -315,7 +374,7 @@ class BaseFormCollection(HolderMixin, RenderableMixin):
         Forms which do not correspond to the model given by the main instance, are responsible themselves to store the
         corresponding data inside their related models.
         """
-        assert not self._errors, f"Can not construct instance with invalid collection {self.__class__} object"
+        assert self.is_valid(), f"Can not construct instance with invalid collection {self.__class__} object"
         for name, holder in self.valid_holders.items():
             if callable(getattr(holder, 'construct_instance', None)):
                 holder.construct_instance(instance)
