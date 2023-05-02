@@ -25,7 +25,7 @@ class TestUniqueValidation(TestCase):
             ]
         }
         coll = CompanyCollection(data=data, instance=self.company)
-        self.assertFalse(coll.errors)
+        self.assertTrue(coll.is_valid())
 
     def test_add_duplicate_team(self):
         data = {
@@ -45,7 +45,7 @@ class TestUniqueValidation(TestCase):
         }
         coll = CompanyCollection(data=data, instance=self.company)
         self.assertFalse(coll.is_valid())
-        self.assertIn("Team with this Team Name and Company already exists", str(coll.errors))
+        self.assertIn("Team with this Team Name and Company already exists", str(coll.errors.items()))
 
     def test_add_duplicate_member(self):
         data = {
@@ -62,7 +62,7 @@ class TestUniqueValidation(TestCase):
         }
         coll = CompanyCollection(data=data, instance=self.company)
         self.assertFalse(coll.is_valid())
-        self.assertIn("Member with this Member Name and Team already exists", str(coll.errors))
+        self.assertIn("Member with this Member Name and Team already exists", str(coll.errors.items()))
 
     def test_add_new_team_with_duplicate_members(self):
         data = {
