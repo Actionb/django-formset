@@ -40,6 +40,7 @@ from testapp.forms.birthdate import BirthdateForm
 from testapp.forms.county import CountyForm
 from testapp.forms.customer import CustomerCollection
 from testapp.forms.moon import MoonForm, MoonCalendarRenderer
+from testapp.forms.multivalue import MultiValueForm
 from testapp.forms.opinion import OpinionForm
 from testapp.forms.person import ButtonActionsForm, SimplePersonForm, sample_person_data, ModelPersonForm
 from testapp.forms.poll import ModelPollForm, PollCollection
@@ -562,6 +563,9 @@ urlpatterns = [
         template_name='testapp/button-actions.html',
         extra_context={'click_actions': 'clearErrors -> disable -> spinner -> submit -> okay(1500) -> proceed !~ enable -> bummer(9999)'},
     ), kwargs={'group': 'button', 'index': 20}, name='button-actions'),
+    path('multi-value', DemoFormView.as_view(
+        form_class=MultiValueForm
+    ), kwargs={'index': 1}, name='multi-value')
 ]
 
 # this creates permutations of forms to show how to withhold which feedback
