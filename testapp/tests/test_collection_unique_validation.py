@@ -79,6 +79,7 @@ class TestUniqueValidation(TestCase):
         }
         coll = CompanyCollection(data=data, instance=self.company)
         self.assertFalse(coll.is_valid())
+        self.assertIn("Please correct the duplicate data for name and team, which must be unique.", str(coll.errors))
 
     def test_add_new_company_with_duplicate_teams(self):
         data = {
@@ -96,3 +97,4 @@ class TestUniqueValidation(TestCase):
         }
         coll = CompanyCollection(data=data, instance=self.company)
         self.assertFalse(coll.is_valid())
+        self.assertIn("Please correct the duplicate data for name and company, which must be unique.", str(coll.errors))
