@@ -254,6 +254,9 @@ class CompanyCollectionView(DemoFormCollectionViewMixin, EditCollectionView):
     model = Company
     collection_class = CompanyCollection
     template_name = 'testapp/form-collection.html'
+    extra_context = {
+        'click_actions': 'disable -> submit -> reload !~ scrollToError'
+    }
 
     def get_queryset(self):
         if not self.request.session.session_key:
@@ -264,7 +267,9 @@ class CompanyCollectionView(DemoFormCollectionViewMixin, EditCollectionView):
     def get_object(self, queryset=None):
         if queryset is None:
             queryset = self.get_queryset()
-        return queryset.last()
+        if object := queryset.last():
+            return object
+        return self.model(created_by=self.request.session.session_key)
 
     def form_collection_valid(self, form_collection):
         if not self.object:
@@ -276,6 +281,9 @@ class CompaniesCollectionView(DemoFormCollectionViewMixin, BulkEditCollectionVie
     model = Company
     collection_class = CompaniesCollection
     template_name = 'testapp/form-collection.html'
+    extra_context = {
+        'click_actions': 'disable -> submit -> reload !~ scrollToError'
+    }
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -283,17 +291,21 @@ class CompaniesCollectionView(DemoFormCollectionViewMixin, BulkEditCollectionVie
             self.request.session.cycle_key()
         return queryset.filter(created_by=self.request.session.session_key)
 
+    def get_form_collection(self):
+        form_collection = super().get_form_collection()
+        if self.request.method == 'POST':
+            # when posting, assign all instances to the current user
+            if not self.request.session.session_key:
+                self.request.session.cycle_key()
+            created_by = self.request.session.session_key
+            for data in form_collection.data:
+                data['company']['created_by'] = created_by
+        return form_collection
+
     def form_collection_valid(self, form_collection):
-        response = super().form_collection_valid(form_collection)
-        # assign all instances to the current user
-        if not self.request.session.session_key:
-            self.request.session.cycle_key()
-        created_by = self.request.session.session_key
         for holder in form_collection.valid_holders:
-            if holder['company'].instance.created_by != created_by:
-                holder['company'].instance.created_by = created_by
-                holder['company'].instance.save(update_fields=['created_by'])
-        return response
+            holder['company'].instance.created_by = self.request.session.session_key
+        return super().form_collection_valid(form_collection)
 
 
 demo_css_classes = {

@@ -1,31 +1,9 @@
 from django.forms import fields, widgets
-from django.forms.models import ModelForm, construct_instance, model_to_dict, ModelChoiceField
+from django.forms.models import ModelForm
 
 from formset.collection import FormCollection
 
 from testapp.models import Company, Member, Team
-
-
-class CompanyForm(ModelForm):
-    class Meta:
-        model = Company
-        fields = '__all__'
-
-
-class TeamForm(ModelForm):
-    id = fields.IntegerField(
-        required=False,
-        widget=widgets.HiddenInput,
-    )
-    company = ModelChoiceField(queryset=Company.objects, required=False, widget=widgets.HiddenInput)
-
-    class Meta:
-        model = Team
-        fields = ['id', 'name', 'company']
-
-    # def _get_validation_exclusions(self):
-    #     # Django excludes missing fields from unique validation, but self.instance.company is set
-    #     return super()._get_validation_exclusions().difference({'company'})
 
 
 class MemberForm(ModelForm):
@@ -33,26 +11,18 @@ class MemberForm(ModelForm):
         required=False,
         widget=widgets.HiddenInput,
     )
-    team = ModelChoiceField(queryset=Team.objects, required=False, widget=widgets.HiddenInput)
 
     class Meta:
         model = Member
-        fields = ['id', 'name', 'team']
-
-    # def _get_validation_exclusions(self):
-    #     # Django excludes missing fields from unique validation, but self.instance.team is set
-    #     return super()._get_validation_exclusions().difference({'team'})
+        fields = ['id', 'name']
 
 
 class MemberCollection(FormCollection):
     min_siblings = 0
     member = MemberForm()
+    legend = "Members"
     add_label = "Add Member"
-
-    def model_to_dict(self, team):
-        fields = self.declared_holders['member']._meta.fields
-        return [{'member': model_to_dict(member, fields=fields)}
-                for member in team.members.all()]
+    related_field = 'team'
 
     def retrieve_instance(self, data):
         if data := data.get('member'):
@@ -61,33 +31,25 @@ class MemberCollection(FormCollection):
             except (Member.DoesNotExist, ValueError):
                 return Member(name=data.get('name'), team=self.instance)
 
-    def construct_instance(self, team):
-        for holder in self.valid_holders:
-            member_form = holder['member']
-            instance = member_form.instance
-            if member_form.marked_for_removal:
-                instance.delete()
-                continue
-            construct_instance(member_form, instance)
-            member_form.save()
+
+class TeamForm(ModelForm):
+    id = fields.IntegerField(
+        required=False,
+        widget=widgets.HiddenInput,
+    )
+
+    class Meta:
+        model = Team
+        fields = ['id', 'name']
 
 
 class TeamCollection(FormCollection):
     min_siblings = 0
     team = TeamForm()
     members = MemberCollection()
-    legend = "Team"
+    legend = "Teams"
     add_label = "Add Team"
-
-    def model_to_dict(self, company):
-        fields = self.declared_holders['team']._meta.fields
-        data = []
-        for team in company.teams.all():
-            data.append({
-                'team': model_to_dict(team, fields=fields),
-                'members': self.declared_holders['members'].model_to_dict(team),
-            })
-        return data
+    related_field = 'company'
 
     def retrieve_instance(self, data):
         if data := data.get('team'):
@@ -96,16 +58,11 @@ class TeamCollection(FormCollection):
             except (Team.DoesNotExist, ValueError):
                 return Team(name=data.get('name'), company=self.instance)
 
-    def construct_instance(self, company):
-        for holder in self.valid_holders:
-            team_form = holder['team']
-            instance = team_form.instance
-            if team_form.marked_for_removal:
-                instance.delete()
-                continue
-            construct_instance(team_form, instance)
-            team_form.save()
-            holder['members'].construct_instance(instance)
+
+class CompanyForm(ModelForm):
+    class Meta:
+        model = Company
+        fields = '__all__'
 
 
 class CompanyCollection(FormCollection):
@@ -125,6 +82,12 @@ class CompanyPlusForm(CompanyForm):
         widget=widgets.HiddenInput,
     )
 
+    created_by = fields.CharField(
+        required=False,
+        widget=widgets.HiddenInput,
+        help_text="Dummy field required to distinguish the namespace of companies for each user",
+    )
+
 
 class CompaniesCollection(FormCollection):
     company = CompanyPlusForm()
@@ -139,14 +102,3 @@ class CompaniesCollection(FormCollection):
                 return Company.objects.get(id=data.get('id') or 0)
             except Company.DoesNotExist:
                 return Company(name=data.get('name'))
-
-    def construct_instances(self):
-        for holder in self.valid_holders:
-            company_form = holder['company']
-            instance = company_form.instance
-            if company_form.marked_for_removal:
-                instance.delete()
-                continue
-            construct_instance(company_form, instance)
-            company_form.save()
-            holder['teams'].construct_instance(instance)

@@ -5,6 +5,7 @@
 	--button-opacity: #{$richtext-button-opacity};
 
 	position: relative;
+	overflow: auto;
 
 	[role="menubar"] {
 		border: none;
@@ -117,6 +118,19 @@
 				float: left;
 				height: 0;
 				pointer-events: none;
+			}
+
+			&[data-text="indent"] {
+				text-indent: 3em;
+			}
+			&[data-text="outdent"] {
+				text-indent: -3em;
+				margin-left: 3em;
+			}
+			@for $indent from 1 through 10 {
+				&[data-text-indent="#{$indent}"] {
+					padding-left: #{2 * $indent}em;
+				}
 			}
 		}
 
