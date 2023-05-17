@@ -103,6 +103,7 @@ class BaseFormCollection(HolderMixin, RenderableMixin):
             if isinstance(self.default_renderer, type):
                 renderer = renderer()
         self.renderer = renderer
+        self.unique_fields = {self.related_field} if hasattr(self, 'related_field') else set()
 
     def iter_single(self):
         for name, declared_holder in self.declared_holders.items():

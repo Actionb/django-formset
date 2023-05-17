@@ -1,3 +1,4 @@
+from django.db.utils import IntegrityError
 from django.forms import fields, widgets
 from django.forms.models import ModelForm
 
