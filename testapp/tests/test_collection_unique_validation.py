@@ -17,9 +17,9 @@ class TestUniqueValidation(TestCase):
             "company": {"name": self.company.name, "id": self.company.pk},
             "teams": [
                 {
-                    "team": {"name": self.team.name, "company": self.company, "id": self.team.pk},
+                    "team": {"name": self.team.name, "id": self.team.pk},
                     "members": [
-                        {"member": {"name": self.alice.name, "team": self.team.pk, "id": self.alice.pk}}
+                        {"member": {"name": self.alice.name, "id": self.alice.pk}}
                     ]
                 },
             ]
@@ -32,13 +32,13 @@ class TestUniqueValidation(TestCase):
             "company": {"name": self.company.name, "id": self.company.pk},
             "teams": [
                 {
-                    "team": {"name": self.team.name, "company": self.company, "id": self.team.pk},
+                    "team": {"name": self.team.name, "id": self.team.pk},
                     "members": [
-                        {"member": {"name": self.alice.name, "team": self.team.pk, "id": self.alice.pk}}
+                        {"member": {"name": self.alice.name, "id": self.alice.pk}}
                     ]
                 },
                 {
-                    "team": {"name": self.team.name, "company": self.company, "id": None},
+                    "team": {"name": self.team.name, "id": None},
                     "members": []
                 },
             ]
@@ -52,10 +52,10 @@ class TestUniqueValidation(TestCase):
             "company": {"name": self.company.name, "id": self.company.pk},
             "teams": [
                 {
-                    "team": {"name": self.team.name, "company": self.company, "id": self.team.pk},
+                    "team": {"name": self.team.name, "id": self.team.pk},
                     "members": [
-                        {"member": {"name": self.alice.name, "team": self.team.pk, "id": self.alice.pk}},
-                        {"member": {"name": self.alice.name, "team": self.team.pk, "id": None}},
+                        {"member": {"name": self.alice.name, "id": self.alice.pk}},
+                        {"member": {"name": self.alice.name, "id": None}},
                     ]
                 },
             ]
@@ -69,10 +69,10 @@ class TestUniqueValidation(TestCase):
             "company": {"name": self.company.name, "id": self.company.pk},
             "teams": [
                 {
-                    "team": {"name": "Bob's Test Team", "company": self.company, "id": None},
+                    "team": {"name": "Bob's Test Team", "id": None},
                     "members": [
-                        {"member": {"name": "Bob", "team": None, "id": None}},
-                        {"member": {"name": "Bob", "team": None, "id": None}},
+                        {"member": {"name": "Bob", "id": None}},
+                        {"member": {"name": "Bob", "id": None}},
                     ]
                 },
             ]
@@ -85,11 +85,11 @@ class TestUniqueValidation(TestCase):
             "company": {"name": "Bob Corp", "id": None},
             "teams": [
                 {
-                    "team": {"name": "Bob's Test Team", "company": None, "id": None},
+                    "team": {"name": "Bob's Test Team", "id": None},
                     "members": []
                 },
                 {
-                    "team": {"name": "Bob's Test Team", "company": None, "id": None},
+                    "team": {"name": "Bob's Test Team", "id": None},
                     "members": []
                 },
             ]
