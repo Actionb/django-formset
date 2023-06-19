@@ -50,5 +50,5 @@ def test_field_group_fully_initialized(page, viewname):
     If the FieldGroup constructor completed successfully, the group should have
     the css class `dj-untouched`.
     """
-    field_group = page.query_selector('django-formset django-field-group')
+    field_group = page.get_by_role('group')
     assert 'dj-untouched' in field_group.get_attribute('class')
